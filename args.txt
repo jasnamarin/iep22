@@ -1,0 +1,15 @@
+--type all --authentication-address http://localhost:5002 --warehouse-address http://localhost:5001 --customer-address http://localhost:5000 --jwt-secret JWT_SECRET_KEY --roles-field roles --customer-role customer --warehouse-role warehouse --administrator-role admin --with-authentication
+
+auth:
+--type authentication --authentication-address http://localhost:5002 --jwt-secret JWT_SECRET_KEY --roles-field roles --customer-role customer --warehouse-role warehouse --administrator-role admin --with-authentication
+
+docker ps -a
+docker logs
+
+votes = Candidacy.query \
+        .filter(Candidacy.election_id == election_id) \
+        .join(Participant, Participant.id == Candidacy.participant_id) \
+        .outerjoin(ValidBallot, ValidBallot.candidacy_id == Candidacy.id) \
+        .group_by(Candidacy.id) \
+        .with_entities(Candidacy.poll_number, Participant.name, func.count(ValidBallot.id)) \
+        .all()

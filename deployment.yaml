@@ -1,0 +1,126 @@
+version: '3'
+
+services:
+  authenticationDB:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      timeout: 10s
+      retries: 10
+    ports:
+      - 3307:3306
+    security_opt:
+      - seccomp:unconfined
+    volumes:
+      - authentication_data_storage:/var/lib/mysql
+    networks:
+      - authentication_network
+  authenticationDBMigration:
+    image: authenticationdbmigration
+    environment:
+      - DATABASE_URL=authenticationDB
+    depends_on:
+      - authenticationDB
+#    depends_on:
+#      authenticationDB:
+#        condition: service_healthy
+    networks:
+      - authentication_network
+  authentication:
+    image: authentication
+    environment:
+      - DATABASE_URL=authenticationDB
+    depends_on:
+      - authenticationDBMigration
+    ports:
+      - '5002:5002'
+    networks:
+      - authentication_network
+  storeDB:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    healthcheck:
+      test: [ 'CMD', 'mysqladmin', 'ping', '-h', 'localhost' ]
+      timeout: 10s
+      retries: 10
+    ports:
+      - 3306:3306
+    security_opt:
+      - seccomp:unconfined
+    volumes:
+      - store_data_storage:/var/lib/mysql
+    networks:
+      - store_network
+      - admin_network
+      - customer_network
+  storeDBmigration:
+    image: storedbmigration
+    environment:
+      - DATABASE_URL=storeDB
+    depends_on:
+      - storeDB
+        #condition: service_healthy
+    networks:
+      - store_network
+  warehouse:
+    image: warehouse
+    depends_on:
+      - redis
+    environment:
+      - REDIS_URI=redis
+    deploy:
+  #    replicas: 3
+    ports:
+      - '5001:5001'
+    networks:
+      - warehouse_network
+  customer:
+    image: customer
+    deploy:
+    #    replicas: 3
+    ports:
+      - '5000:5000'
+    networks:
+      - customer_network
+  daemon:
+    image: daemon
+    environment:
+      - DATABASE_URL=storeDB
+      - REDIS_URI=redis
+    depends_on:
+      - storeDBmigration
+    networks:
+      - store_network
+      - redis_network
+  redis:
+    image: redis
+    ports:
+      - 6379:6379
+    networks:
+      - warehouse_network
+      - redis_network
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    networks:
+      - authentication_network
+      - store_network
+
+volumes:
+  authentication_data_storage:
+  store_data_storage:
+
+networks:
+  authentication_network:
+  store_network:
+  customer_network:
+  admin_network:
+  redis_network:
+  warehouse_network:
